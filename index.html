@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>تتبع المصروفات الذكي</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  </head>
+  <body data-theme="light">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 8.5V6a2 2 0 0 1 2-2h3.5"></path>
+              <path d="M3 15.5V18a2 2 0 0 0 2 2h3.5"></path>
+              <path d="M21 8.5V6a2 2 0 0 0-2-2h-3.5"></path>
+              <path d="M21 15.5V18a2 2 0 0 1-2 2h-3.5"></path>
+              <rect x="7" y="5" width="10" height="14" rx="2"></rect>
+              <path d="M10 9h4"></path>
+              <path d="M10 13h4"></path>
+            </svg>
+          </div>
+          <div>
+            <h1>تتبع المصروفات الذكي</h1>
+            <p>تحكم مالي احترافي</p>
+          </div>
+        </div>
+
+        <nav class="nav-links" aria-label="التنقل الرئيسي">
+          <button class="nav-link active" data-page="dashboard">
+            <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span>
+            <span class="nav-label">لوحة التحكم</span>
+          </button>
+          <button class="nav-link" data-page="transactions">
+            <span class="nav-icon"><i data-lucide="receipt-text"></i></span>
+            <span class="nav-label">المعاملات</span>
+          </button>
+          <button class="nav-link" data-page="budget">
+            <span class="nav-icon"><i data-lucide="wallet"></i></span>
+            <span class="nav-label">الميزانية</span>
+          </button>
+          <button class="nav-link" data-page="goals">
+            <span class="nav-icon"><i data-lucide="target"></i></span>
+            <span class="nav-label">الأهداف</span>
+          </button>
+          <button class="nav-link" data-page="settings">
+            <span class="nav-icon"><i data-lucide="settings"></i></span>
+            <span class="nav-label">الإعدادات</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button id="themeToggle" class="theme-btn" type="button">
+            <i data-lucide="moon"></i>
+            <span>الوضع الليلي</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">مرحبًا بك</p>
+            <h2 id="headerTitle">لوحة التحكم</h2>
+          </div>
+          <div class="topbar-actions">
+            <button id="openTransactionModal" class="primary-btn" type="button">
+              <i data-lucide="plus"></i>
+              <span>إضافة مصروف</span>
+            </button>
+          </div>
+        </header>
+
+        <section id="dashboard" class="page-section active">
+          <div class="stats-grid">
+            <article class="card stat-card income">
+              <div class="stat-icon"><i data-lucide="badge-dollar-sign"></i></div>
+              <p>إجمالي الدخل</p>
+              <h3 id="incomeTotal">0</h3>
+            </article>
+            <article class="card stat-card expense">
+              <div class="stat-icon"><i data-lucide="credit-card"></i></div>
+              <p>إجمالي المصروفات</p>
+              <h3 id="expenseTotal">0</h3>
+            </article>
+            <article class="card stat-card balance">
+              <div class="stat-icon"><i data-lucide="wallet-cards"></i></div>
+              <p>الرصيد المتبقي</p>
+              <h3 id="balanceTotal">0</h3>
+            </article>
+            <article class="card stat-card budget">
+              <div class="stat-icon"><i data-lucide="chart-no-axes-combined"></i></div>
+              <p>نسبة الإنفاق من الميزانية</p>
+              <h3 id="budgetRatio">0%</h3>
+            </article>
+          </div>
+
+          <div class="charts-grid">
+            <div class="card chart-card">
+              <div class="card-head">
+                <h3>توزيع المصروفات حسب التصنيف</h3>
+              </div>
+              <canvas id="expenseChart"></canvas>
+            </div>
+            <div class="card chart-card">
+              <div class="card-head">
+                <h3>اتجاه الدخل والمصروفات</h3>
+              </div>
+              <canvas id="trendChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h3>الرؤى الذكية</h3>
+            </div>
+            <div id="insightsList" class="insight-list"></div>
+          </div>
+        </section>
+
+        <section id="transactions" class="page-section">
+          <div class="card">
+            <div class="card-head">
+              <h3>المعاملات</h3>
+              <div class="toolbar">
+                <input id="searchInput" type="text" placeholder="بحث في المعاملات" />
+                <select id="typeFilter">
+                  <option value="all">الكل</option>
+                  <option value="income">دخل</option>
+                  <option value="expense">مصروف</option>
+                </select>
+                <select id="categoryFilter"></select>
+                <button id="exportCsvBtn" class="secondary-btn" type="button">تصدير CSV</button>
+              </div>
+            </div>
+            <div id="transactionsList" class="transaction-list"></div>
+          </div>
+        </section>
+
+        <section id="budget" class="page-section">
+          <div class="card">
+            <div class="card-head">
+              <h3>إدارة الميزانيات</h3>
+            </div>
+            <div id="budgetList" class="budget-list"></div>
+          </div>
+        </section>
+
+        <section id="goals" class="page-section">
+          <div class="card">
+            <div class="card-head">
+              <h3>أهداف الادخار</h3>
+              <form id="goalForm" class="inline-form">
+                <input type="text" id="goalTitle" placeholder="مثال: شراء لابتوب" required />
+                <input type="number" id="goalTarget" placeholder="الهدف" min="1" required />
+                <button class="primary-btn" type="submit">إضافة هدف</button>
+              </form>
+            </div>
+            <div id="goalsList" class="goals-list"></div>
+          </div>
+        </section>
+
+        <section id="settings" class="page-section">
+          <div class="settings-grid">
+            <div class="card">
+              <div class="card-head">
+                <h3>الإعدادات العامة</h3>
+              </div>
+              <form id="settingsForm" class="stack-form">
+                <label>
+                  العملة
+                  <select id="currencySelect">
+                    <option value="USD">دولار</option>
+                    <option value="EUR">يورو</option>
+                    <option value="JOD">دينار</option>
+                    <option value="SAR">ريال</option>
+                  </select>
+                </label>
+                <label class="checkbox-row">
+                  <input id="darkModeToggle" type="checkbox" />
+                  تمكين الوضع الليلي
+                </label>
+                <button class="primary-btn" type="submit">حفظ الإعدادات</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>إضافة دخل</h3>
+              </div>
+              <form id="incomeForm" class="stack-form">
+                <label>
+                  القيمة
+                  <input id="incomeAmount" type="number" min="0.01" step="0.01" required />
+                </label>
+                <label>
+                  التصنيف
+                  <select id="incomeCategory"></select>
+                </label>
+                <label>
+                  طريقة الدفع
+                  <input id="incomePayment" type="text" placeholder="مثال: تحويل/نقدي" />
+                </label>
+                <button class="primary-btn" type="submit">إضافة دخل</button>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>التصنيفات المخصصة</h3>
+              </div>
+              <form id="categoryForm" class="stack-form">
+                <input type="text" id="customCategoryName" placeholder="اسم التصنيف" required />
+                <input type="text" id="customCategoryIcon" placeholder="اسم أيقونة Lucide" required />
+                <input type="color" id="customCategoryColor" value="#7c87c8" />
+                <button class="primary-btn" type="submit">إضافة تصنيف</button>
+              </form>
+              <div id="categoriesList" class="chip-list"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-head">
+                <h3>إدارة البيانات</h3>
+              </div>
+              <button id="clearDataBtn" class="danger-btn" type="button">حذف كل البيانات</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="التنقل السفلي">
+      <button class="mobile-nav-link active" data-page="dashboard" type="button">
+        <i data-lucide="layout-dashboard"></i>
+        <span>الرئيسية</span>
+      </button>
+      <button class="mobile-nav-link" data-page="transactions" type="button">
+        <i data-lucide="receipt-text"></i>
+        <span>المعاملات</span>
+      </button>
+      <button class="mobile-nav-link mobile-nav-fab" data-page="transactions" type="button">
+        <i data-lucide="plus"></i>
+      </button>
+      <button class="mobile-nav-link" data-page="budget" type="button">
+        <i data-lucide="wallet"></i>
+        <span>الميزانية</span>
+      </button>
+      <button class="mobile-nav-link" data-page="settings" type="button">
+        <i data-lucide="settings"></i>
+        <span>الإعدادات</span>
+      </button>
+    </nav>
+
+    <button id="fabAdd" class="fab" type="button">
+      <i data-lucide="plus"></i>
+    </button>
+
+    <div id="transactionModal" class="modal-backdrop hidden">
+      <div class="modal-card compact">
+        <div class="modal-head">
+          <h3 id="modalTitle">إضافة مصروف</h3>
+          <button id="closeModalBtn" class="icon-btn" type="button">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <form id="transactionForm" class="stack-form">
+          <input type="hidden" id="transactionId" />
+          <input type="hidden" id="transactionType" value="expense" />
+          <label>
+            القيمة
+            <input id="transactionAmount" type="number" min="0.01" step="0.01" required />
+          </label>
+          <label>
+            التصنيف
+            <select id="transactionCategory"></select>
+          </label>
+          <label>
+            طريقة الدفع
+            <input id="transactionPayment" type="text" placeholder="مثال: نقدي/بطاقة" />
+          </label>
+          <button class="primary-btn" type="submit">إضافة مصروف</button>
+        </form>
+      </div>
+    </div>
+
+    <script src="js/data-service.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
